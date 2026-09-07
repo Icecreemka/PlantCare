@@ -1,72 +1,73 @@
-# Уход за растениями (PlantCare)
+# PlantCare
 
-Android-приложение (Kotlin + Jetpack Compose) для отслеживания полива и подкормки комнатных растений.
+An Android app (Kotlin + Jetpack Compose) for tracking watering and fertilizing schedules for houseplants.
 
-## Возможности
+## Features
 
-- Добавление растения: название, тип (влияет на скорость "высыхания"), диаметр и высота горшка, фото.
-- Автоматический расчёт базового интервала полива по объёму горшка и типу растения.
-- Корректировка интервала по погоде (температура, влажность, скорость ветра как показатель испарения)
-  через бесплатный API Open-Meteo (без ключа), используя последнюю известную геопозицию устройства.
-- Обратная связь пользователя: кнопки «Высохло раньше» / «Ещё влажно» на экране растения,
-  которые обучают персональный поправочный коэффициент для конкретного растения.
-- Собственный график удобрения на каждое растение (интервал в днях, название удобрения, заметки).
-- Поле заметок об особенностях полива и поле последней даты пересадки.
-- История ухода (полив, удобрение, проверки, пересадка, отметки о сухости) на экране растения.
-- Уведомления:
-  - о наступлении даты полива/удобрения (ежедневная фоновая проверка через WorkManager);
-  - общее напоминание «проверьте растения» примерно раз в 2–3 дня.
+- Add a plant: name, type (affects how fast it "dries out"), pot diameter and height, photo.
+- Automatic base watering interval calculated from pot volume and plant type.
+- Weather-based adjustment (temperature, humidity, wind speed as a proxy for evaporation)
+  via the free Open-Meteo API (no key required), using the device's last known location.
+- User feedback loop: "Dried out early" / "Still moist" buttons on the plant screen,
+  which train a personal correction factor for that specific plant.
+- Custom fertilizer schedule per plant (interval in days, fertilizer name, notes).
+- Notes field for watering peculiarities, plus a last-repotted-date field.
+- Care history (watering, fertilizing, checks, repotting, dryness notes) on the plant detail screen.
+- Notifications:
+  - when a watering/fertilizing date is due (daily background check via WorkManager);
+  - a general "check your plants" reminder roughly every 2–3 days.
 
-## Структура проекта
+## Project structure
 
 ```
 app/src/main/java/com/uliana/plantcare/
 ├── data/
-│   ├── local/            # Room: сущности, DAO, база данных, конвертеры типов
-│   ├── remote/           # Retrofit-интерфейс и модели Open-Meteo
-│   └── repository/       # PlantRepository, WeatherRepository — вся бизнес-логика доступа к данным
+│   ├── local/            # Room: entities, DAOs, database, type converters
+│   ├── remote/           # Retrofit interface and Open-Meteo models
+│   └── repository/       # PlantRepository, WeatherRepository — all data access business logic
 ├── domain/
-│   └── WateringCalculator.kt   # формулы расчёта интервала полива и погодной корректировки
+│   └── WateringCalculator.kt   # watering interval and weather-adjustment formulas
 ├── notification/
 │   ├── NotificationHelper.kt
 │   ├── BootReceiver.kt
-│   └── workers/          # WorkManager-воркеры (полив/удобрение, общая проверка)
+│   └── workers/          # WorkManager workers (watering/fertilizing, general check)
 ├── ui/
-│   ├── theme/            # Material3-тема
-│   ├── navigation/       # NavHost и маршруты
-│   ├── plantlist/        # Экран списка растений
-│   ├── addedit/          # Экран добавления растения
-│   ├── detail/           # Экран деталей растения (полив, удобрение, заметки, история)
-│   └── components/       # Переиспользуемые composable (карточка растения)
-├── PlantCareApplication.kt   # Ручной DI + планирование фоновых задач
-└── MainActivity.kt           # Разрешения (уведомления, геолокация) + запуск NavHost
+│   ├── theme/            # Material 3 theme
+│   ├── navigation/       # NavHost and routes
+│   ├── plantlist/        # Plant list screen
+│   ├── addedit/          # Add/edit plant screen
+│   ├── detail/           # Plant detail screen (watering, fertilizing, notes, history)
+│   └── components/       # Reusable composables (plant card)
+├── PlantCareApplication.kt   # Manual DI + background task scheduling
+└── MainActivity.kt           # Permissions (notifications, location) + NavHost entry point
 ```
 
-## Как собрать
+## Building
 
-1. Открыть папку проекта в Android Studio (Koala или новее).
-2. Дождаться синхронизации Gradle (интернет нужен только для загрузки зависимостей при первой сборке).
-3. Запустить на устройстве/эмуляторе с API 26+.
+1. Open the project folder in Android Studio (Koala or newer).
+2. Let Gradle sync (internet is only needed to download dependencies on first build).
+3. Run on a device or emulator with API 26+.
 
-При первом запуске приложение запросит разрешение на уведомления (Android 13+) и на геолокацию
-(для погодной корректировки полива). Если отказаться от геолокации — расчёт интервала полива
-будет работать без учёта погоды, только по параметрам горшка/растения и вашей обратной связи.
+On first launch, the app will request notification permission (Android 13+) and location
+permission (for weather-based watering adjustment). If you decline location access, the
+watering interval calculation still works — just without weather adjustment, based only on
+pot/plant parameters and your feedback.
 
-## Логика расчёта полива (кратко)
+## Watering calculation logic (summary)
 
-1. **База**: интервал ~ квадратный корень от объёма горшка, делённый на коэффициент испарения
-   категории растения (суккуленты сохнут медленнее, тропические/цветущие — быстрее).
-2. **Погода**: жара и ветер сокращают интервал, высокая влажность воздуха — удлиняет.
-3. **Обратная связь**: если вы отметили «высохло раньше» — персональный коэффициент растения
-   уменьшается (поливать чаще); если «ещё влажно» — увеличивается (поливать реже).
-   Коэффициент применяется ко всем будущим расчётам для этого растения.
+1. **Base**: interval ~ square root of pot volume, divided by the plant category's
+   evaporation coefficient (succulents dry out slower, tropical/flowering plants faster).
+2. **Weather**: heat and wind shorten the interval; high air humidity lengthens it.
+3. **Feedback**: marking "dried out early" decreases the plant's personal correction factor
+   (water more often); marking "still moist" increases it (water less often). The factor is
+   applied to all future calculations for that plant.
 
-Формулы находятся в одном файле `domain/WateringCalculator.kt` — их легко скорректировать
-под свой опыт (например, изменить референсные значения температуры/влажности).
+The formulas live in a single file, `domain/WateringCalculator.kt` — easy to tune to your
+own experience (e.g. adjusting the reference temperature/humidity values).
 
-## Что можно доработать дальше
+## Possible next steps
 
-- Экран настроек с ручным вводом города/координат вместо GPS.
-- Виджет на главный экран с ближайшими датами полива.
-- Резервное копирование фото в облако (сейчас хранится только content:// URI из галереи).
-- Тесты для `WateringCalculator`.
+- Settings screen with manual city/coordinates input instead of GPS.
+- Home screen widget showing upcoming watering dates.
+- Cloud backup for photos (currently only a `content://` URI from the gallery is stored).
+- Tests for `WateringCalculator`.
